@@ -1,30 +1,33 @@
 import cv2
-import torch
 import numpy as np
-#import seaborn as sns
-from .model import transform
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import torch
 import torchvision.utils as vutils
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
+# import seaborn as sns
+from .model import transform
 
 UNKNOWN_FLOW_THRESH = 1e7
 SMALLFLOW = 0.0
 LARGEFLOW = 1e8
 
+
 def prepare_img(img):
 
     if img.ndim == 3:
-        img = img[:, :, ::-1] ### RGB to BGR
+        img = img[:, :, ::-1]  # RGB to BGR
 
-    ## clip to [0, 1]
+    # clip to [0, 1]
     img = np.clip(img, 0, 1)
 
-    ## quantize to [0, 255]
+    # quantize to [0, 255]
     img = np.uint8(img * 255.0)
 
     #cv2.imwrite(filename, img, [cv2.IMWRITE_PNG_COMPRESSION, 0])
     return img
 
-def flow_to_rgb(flow, mr = None):
+
+def flow_to_rgb(flow, mr=None):
     """
     Convert flow into middlebury color code image
     :param flow: optical flow map
@@ -53,7 +56,7 @@ def flow_to_rgb(flow, mr = None):
     if(mr is not None):
         maxrad = mr
 
-    #print "max flow: %.4f\nflow range:\nu = %.3f .. %.3f\nv = %.3f .. %.3f" % (maxrad, minu,maxu, minv, maxv)
+    # print "max flow: %.4f\nflow range:\nu = %.3f .. %.3f\nv = %.3f .. %.3f" % (maxrad, minu,maxu, minv, maxv)
 
     u = u/(maxrad + np.finfo(float).eps)
     v = v/(maxrad + np.finfo(float).eps)
@@ -94,7 +97,7 @@ def compute_color(u, v):
     k1[k1 == ncols+1] = 1
     f = fk - k0
 
-    for i in range(0, np.size(colorwheel,1)):
+    for i in range(0, np.size(colorwheel, 1)):
         tmp = colorwheel[:, i]
         col0 = tmp[k0-1] / 255
         col1 = tmp[k1-1] / 255
@@ -159,6 +162,7 @@ def make_color_wheel():
 
     return colorwheel
 
+
 def aff2flow(A, F_size, GPU=True):
     """
     INPUT:
@@ -167,9 +171,9 @@ def aff2flow(A, F_size, GPU=True):
     OUTPUT:
      - U: a (2*H*W) flow tensor, U_ij indicates the coordinates of pixel ij in target image.
     """
-    b,c,h,w = F_size
-    theta = torch.tensor([[1,0,0],[0,1,0]])
-    theta = theta.unsqueeze(0).repeat(b,1,1)
+    b, c, h, w = F_size
+    theta = torch.tensor([[1, 0, 0], [0, 1, 0]])
+    theta = theta.unsqueeze(0).repeat(b, 1, 1)
     theta = theta.float()
 
     # grid is a uniform grid with left top (-1,1) and right bottom (1,1)
@@ -180,9 +184,10 @@ def aff2flow(A, F_size, GPU=True):
         grid = grid.cuda()
     # b * (h*w) * 2
     # A: 1x1024x1024
-    grid = grid.permute(0,3,1,2)
+    grid = grid.permute(0, 3, 1, 2)
     U = transform(A, grid)
-    return (U - grid).permute(0,2,3,1)
+    return (U - grid).permute(0, 2, 3, 1)
+
 
 def draw_certainty_map(map, normalize=False):
     """
@@ -209,13 +214,14 @@ def draw_certainty_map(map, normalize=False):
     gray[gray == 255] = 0
     gray[gray > 0] = 255
     coords = cv2.findNonZero(gray)
-    x,y,w,h = cv2.boundingRect(coords)
+    x, y, w, h = cv2.boundingRect(coords)
     #rect = image[y:y+h, x:x+w]
     rect = image
     figure.clf()
     return rect
 
-def draw_foreground(aff, mask, temp = 1, reverse=False):
+
+def draw_foreground(aff, mask, temp=1, reverse=False):
     """
     INPUTS:
      - aff: a b*N*N affinity matrix, without applying any softmax
@@ -224,15 +230,15 @@ def draw_foreground(aff, mask, temp = 1, reverse=False):
      - reverse: if False, calculates where does each pixel go
                 if True, calculates where does each pixel come from
     """
-    mask = torch.argmax(mask, dim = 0)
-    h,w = mask.size()
-    res = torch.zeros(h,w)
+    mask = torch.argmax(mask, dim=0)
+    h, w = mask.size()
+    res = torch.zeros(h, w)
     if(reverse):
         # apply softmax to each column
-        aff = torch.nn.functional.softmax(aff*temp, dim = 0)
+        aff = torch.nn.functional.softmax(aff*temp, dim=0)
     else:
         # apply softmax to each row
-        aff = torch.nn.functional.softmax(aff*temp, dim = 1)
+        aff = torch.nn.functional.softmax(aff*temp, dim=1)
     # extract forground affinity
     # N
     mask_flat = mask.view(-1)
@@ -240,52 +246,54 @@ def draw_foreground(aff, mask, temp = 1, reverse=False):
     fgcmask = mask_flat.nonzero().squeeze()
     if(reverse):
         # N * x
-        Faff = aff[:,fgcmask]
+        Faff = aff[:, fgcmask]
     else:
         # x * N
-        Faff = aff[fgcmask,:]
+        Faff = aff[fgcmask, :]
 
-    theta = torch.tensor([[1,0,0],[0,1,0]])
-    theta = theta.unsqueeze(0).repeat(1,1,1)
+    theta = torch.tensor([[1, 0, 0], [0, 1, 0]])
+    theta = theta.unsqueeze(0).repeat(1, 1, 1)
     theta = theta.float()
 
     # grid is a uniform grid with left top (-1,1) and right bottom (1,1)
     # 1 * (h*w) * 2
-    grid = torch.nn.functional.affine_grid(theta, torch.Size((1,1,h,w)))
+    grid = torch.nn.functional.affine_grid(theta, torch.Size((1, 1, h, w)))
     # N*2
     grid = grid.squeeze()
-    grid = grid.view(-1,2)
+    grid = grid.view(-1, 2)
     grid = (grid + 1)/2
-    grid[:,0] *= w
-    grid[:,1] *= h
+    grid[:, 0] *= w
+    grid[:, 1] *= h
     if(reverse):
-        grid = grid.permute(1,0)
+        grid = grid.permute(1, 0)
         # 2 * x
         Fcoord = torch.mm(grid, Faff)
         Fcoord = Fcoord.long()
-        res[Fcoord[1,:], Fcoord[0,:]] = 1
+        res[Fcoord[1, :], Fcoord[0, :]] = 1
     else:
         # x * 2
         grid -= 1
         Fcoord = torch.mm(Faff, grid)
         Fcoord = Fcoord.long()
-        res[Fcoord[:,1], Fcoord[:,0]] = 1
+        res[Fcoord[:, 1], Fcoord[:, 0]] = 1
     res = torch.nn.functional.interpolate(res.unsqueeze(0).unsqueeze(0), scale_factor=8, mode='bilinear')
     return res
+
 
 def norm_mask(mask):
     """
     INPUTS:
      - mask: segmentation mask
     """
-    c,h,w = mask.size()
+    c, h, w = mask.size()
     for cnt in range(c):
-        mask_cnt = mask[cnt,:,:]
+        mask_cnt = mask[cnt, :, :]
         if (mask_cnt.max() > 0):
             mask_cnt = (mask_cnt - mask_cnt.min())
             mask_cnt = mask_cnt/mask_cnt.max()
-            mask[cnt,:,:] = mask_cnt
+            mask[cnt, :, :] = mask_cnt
     return mask
+
 
 def read_flo(filename):
     FLO_TAG = 202021.25
@@ -294,11 +302,11 @@ def read_flo(filename):
         tag = np.fromfile(f, np.float32, count=1)
 
         if tag != FLO_TAG:
-            sys.exit('Wrong tag. Invalid .flo file %s' %filename)
+            sys.exit('Wrong tag. Invalid .flo file %s' % filename)
         else:
             w = int(np.fromfile(f, np.int32, count=1))
             h = int(np.fromfile(f, np.int32, count=1))
-            #print 'Reading %d x %d flo file' % (w, h)
+            # print 'Reading %d x %d flo file' % (w, h)
 
             data = np.fromfile(f, np.float32, count=2*w*h)
 

@@ -1,24 +1,23 @@
+import pdb
+import sys
+
+import numpy as np
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.autograd.variable import Variable
 from torch.nn import init
 
 from .densenet import *
+
 #from .resnet import *
 #from .vgg import *
 #from .crop_resize import CropResize
 
-# from densenet import *
-# from resnet import *
-# from vgg import *
 
-import numpy as np
-import sys
 thismodule = sys.modules[__name__]
 # from .roi_module import RoIPooling2D
 # import cupy as cp
-import pdb
 
 img_size = 256
 
@@ -71,7 +70,7 @@ def proc_densenet(model):
     all_layers = []
     remove_sequential(all_layers, model.features.denseblock3)
     for m in all_layers:
-        if isinstance(m, nn.Conv2d) and m.kernel_size==(3, 3):
+        if isinstance(m, nn.Conv2d) and m.kernel_size == (3, 3):
             m.dilation = (2, 2)
             m.padding = (2, 2)
 
@@ -80,7 +79,7 @@ def proc_densenet(model):
     all_layers = []
     remove_sequential(all_layers, model.features.denseblock4)
     for m in all_layers:
-        if isinstance(m, nn.Conv2d) and m.kernel_size==(3, 3):
+        if isinstance(m, nn.Conv2d) and m.kernel_size == (3, 3):
             m.dilation = (4, 4)
             m.padding = (4, 4)
     return model
@@ -106,6 +105,7 @@ def get_upsampling_weight(in_channels, out_channels, kernel_size):
     weight[range(in_channels), range(out_channels), :, :] = filt
     return torch.from_numpy(weight).float()
 
+
 def weight_init(m):
     if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
         m.weight.data.normal_(0.0, 0.02)
@@ -119,8 +119,9 @@ def weight_init(m):
 
 def fraze_bn(m):
     if isinstance(m, nn.BatchNorm2d):
-        m.weight.requires_grad=False
-        m.requires_grad=False
+        m.weight.requires_grad = False
+        m.requires_grad = False
+
 
 class DeepLab_org(nn.Module):
     def __init__(self, pretrained=True, c_output=21, c_input=3, base='vgg16'):
@@ -133,7 +134,7 @@ class DeepLab_org(nn.Module):
         self.preds = nn.ModuleList([nn.Conv2d(dims[0], c_output, kernel_size=3, dilation=dl, padding=dl)
                                     for dl in [6, 12, 18, 24]])
         self.upscale = nn.ConvTranspose2d(c_output, c_output, 16, 8, 4)
-        self.sigmoid =  nn.Sigmoid()
+        self.sigmoid = nn.Sigmoid()
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
@@ -149,21 +150,19 @@ class DeepLab_org(nn.Module):
         self.feature = procs[base](self.feature)
         for m in self.modules():
             if isinstance(m, nn.BatchNorm2d):
-                m.requires_grad= False
+                m.requires_grad = False
 
     def forward(self, x):
-        #print('input size:', x.size())#24*3*256*256
+        # print('input size:', x.size())#24*3*256*256
         x = self.feature(x)
         # x = self.pred(x)
         x1 = sum([f(x) for f in self.preds])
-        x1 = F.upsample(x1, [256,256], mode='bilinear')#F.upsample(x1, input_size, mode='bilinear')self.upscale(x) #
-        #print('output size',x.size()) #24*256*256
-        predict = x1#self.sigmoid(x1)
+        x1 = F.upsample(x1, [256, 256], mode='bilinear')  # F.upsample(x1, input_size, mode='bilinear')self.upscale(x) #
+        # print('output size',x.size()) #24*256*256
+        predict = x1  # self.sigmoid(x1)
         #feat = torch.cat(temp,dim=1)
         #print('middle feature size:',x.size(), temp[0].size(), feat.size())
         return predict
-
-
 
 
 if __name__ == "__main__":
