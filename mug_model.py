@@ -165,7 +165,7 @@ class GC(nn.Module):
 
 
 class TackMatchComb(nn.Module):
-    def __init__(self, pretrained, encoder_dir=None, decoder_dir=None, temp=1, resnet="r50", color_switch=True, coord_switch=True):
+    def __init__(self, pretrained, encoder_dir=None, decoder_dir=None, temp=1, resnet="r50", color_switch=True, coord_switch=False):
         super(TackMatchComb, self).__init__()
 
         if resnet in "r18":

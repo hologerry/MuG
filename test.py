@@ -29,7 +29,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=1,
                         help="batch size")
-    parser.add_argument("-o", "--out_dir", type=str, default="results_ZVOS_residual/",
+    parser.add_argument("-o", "--out_dir", type=str, default="results_ZVOS/",
                         help="output saving path")
     parser.add_argument("--pretrainRes", action="store_true")
     parser.add_argument("--encoder_dir", type=str, default='weights/encoder_single_gpu.pth', help="pretrained encoder")
@@ -47,19 +47,20 @@ def parse_args():
                         help="softmax temperature")
     parser.add_argument("--topk", type=int, default=5,
                         help="accumulate label from top k neighbors")
-    parser.add_argument("-d", "--davis_dir", type=str,
-                        default="/workspace/DAVIS/",
-                        help="davis dataset path")
+    # parser.add_argument("-d", "--davis_dir", type=str,
+    #                     default="/workspace/DAVIS/",
+    #                     help="davis dataset path")
+    parser.add_argument("-d", "--test_dir", type=str, default="/D_data/Seg/object_test_data/", help="davis dataset path")
 
     args = parser.parse_args()
     args.is_train = False
 
-    args.multiGPU = args.device == 5
+    args.multiGPU = True
     if not args.multiGPU:
         torch.cuda.set_device(args.device)
 
-    args.val_txt = os.path.join(args.davis_dir, "val_seqs.txt")
-    args.davis_dir = os.path.join(args.davis_dir, "JPEGImages/480p/")
+    args.val_txt = os.path.join(args.test_dir, "val.txt")
+    args.test_dir = os.path.join(args.test_dir, "frames")
 
     return args
 
@@ -196,16 +197,15 @@ if __name__ == '__main__':
 
     # loading pretrained model
     model = Model(pretrainRes=False, temp=args.temp, uselayer=4)
-    # model = Model(args.pretrainRes, args.encoder_dir, args.decoder_dir, temp=args.temp, Resnet=args.Resnet,
-    #              color_switch=args.color_switch_flag, coord_switch=args.coord_switch_flag)
+    # model = Model(args.pretrainRes, args.encoder_dir, args.decoder_dir, temp=args.temp, resnet=args.resnet,
+    #               color_switch=args.color_switch_flag, coord_switch=args.coord_switch_flag)
     #model = Model(pretrainRes=False,  temp=args.temp, color_switch=True, coord_switch=0)
-    if(args.multiGPU):
+    if args.multiGPU:
         model = nn.DataParallel(model)
     checkpoint = torch.load(args.checkpoint_dir)
     best_loss = checkpoint['best_loss']
     model.load_state_dict(checkpoint['state_dict'])
-    print("=> loaded checkpoint '{} ({})' (epoch {})"
-          .format(args.checkpoint_dir, best_loss, checkpoint['epoch']))
+    print("=> loaded checkpoint '{} ({})' (epoch {})" .format(args.checkpoint_dir, best_loss, checkpoint['epoch']))
     model.cuda()
     model.eval()
 
