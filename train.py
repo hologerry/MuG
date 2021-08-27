@@ -36,7 +36,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='')
 
     # file/folder pathes
-    parser.add_argument("--videoRoot", type=str, default="/D_data/Seg/data/GOT-10k/train/", help='train video path')
+    parser.add_argument("--videoRoot", type=str, default="../data/GOT-10k/train/", help='train video path')
     parser.add_argument("--encoder_dir", type=str, default='weights/encoder_single_gpu.pth', help="pretrained encoder")
     parser.add_argument("--decoder_dir", type=str, default='weights/decoder_single_gpu.pth', help="pretrained decoder")
     parser.add_argument('--resume', type=str, default='', metavar='PATH', help='path to latest checkpoint (default: none)')
