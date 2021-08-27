@@ -159,3 +159,7 @@ def encoder_res18(pretrained=True, uselayer=3):
         print("Using pretrianed ResNet18 as guide.")
         model.load_state_dict(torch.load("ae_models/resnet18-5c106cde.pth"), strict=False)
     return model
+
+
+def encoder_res50(pretrained=True, uselayer=3):
+    raise NotImplementedError
